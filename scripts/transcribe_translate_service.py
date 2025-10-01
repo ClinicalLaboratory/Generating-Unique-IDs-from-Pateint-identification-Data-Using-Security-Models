@@ -5,7 +5,7 @@ import shutil
 from typing import Optional, Dict, Any
 
 from fastapi import FastAPI, UploadFile, File, Form, HTTPException
-from fastapi.responses import JSONResponse
+from fastapi.responses import JSONResponse, Response
 from fastapi.middleware.cors import CORSMiddleware
 import httpx
 import uvicorn
@@ -219,8 +219,12 @@ async def proxy_to_n8n(audio: UploadFile = File(...), targetLang: str = Form("en
     }
     async with httpx.AsyncClient(timeout=600) as client:
         resp = await client.post(webhook_url, files=files)
-        resp.raise_for_status()
-        return JSONResponse(resp.json())
+        # Try JSON; if not JSON, return raw content and status
+        try:
+            data = resp.json()
+            return JSONResponse(data, status_code=resp.status_code)
+        except Exception:
+            return Response(content=resp.content, status_code=resp.status_code, media_type=resp.headers.get("content-type", "text/plain"))
 
 
 if __name__ == "__main__":
