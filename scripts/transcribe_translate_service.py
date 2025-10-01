@@ -212,19 +212,13 @@ async def transcribe_translate(audio: UploadFile = File(...), target: str = Form
 async def proxy_to_n8n(audio: UploadFile = File(...), targetLang: str = Form("en")):
     # streams to local n8n webhook to avoid browser CORS
     webhook_url = os.environ.get("N8N_WEBHOOK_URL", "http://localhost:5678/webhook-test/speech-translate")
-    form = httpx.MultipartWriter()
-    # read content
     content = await audio.read()
-    form.add_part(content, headers={
-        "Content-Disposition": f"form-data; name=\"audio\"; filename=\"{audio.filename or 'audio.webm'}\"",
-        "Content-Type": audio.content_type or "application/octet-stream",
-    })
-    form.add_part(targetLang, headers={
-        "Content-Disposition": "form-data; name=\"targetLang\""
-    })
+    files = {
+        "audio": (audio.filename or "audio.webm", content, audio.content_type or "application/octet-stream"),
+        "targetLang": (None, targetLang),
+    }
     async with httpx.AsyncClient(timeout=600) as client:
-        headers = {"Content-Type": f"multipart/form-data; boundary={form.boundary}"}
-        resp = await client.post(webhook_url, content=form, headers=headers)
+        resp = await client.post(webhook_url, files=files)
         resp.raise_for_status()
         return JSONResponse(resp.json())
 
