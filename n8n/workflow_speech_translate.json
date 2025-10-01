@@ -21,7 +21,7 @@
     },
     {
       "parameters": {
-        "url": "http://127.0.0.1:8001/transcribe-translate",
+        "url": "http://host.docker.internal:8001/transcribe-translate",
         "options": {
           "sendBinaryProperty": "audio",
           "sendQuery": false,
@@ -41,7 +41,8 @@
               "value": "={{$json.body?.targetLang || $json.query?.targetLang || 'en'}}"
             }
           ]
-        }
+        },
+        "method": "POST"
       },
       "id": "HTTP Request",
       "name": "Call Local Whisper Service",
