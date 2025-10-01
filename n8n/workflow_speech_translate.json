@@ -1,0 +1,114 @@
+{
+  "name": "Local Speech Translate (Whisper+Argos)",
+  "nodes": [
+    {
+      "parameters": {
+        "path": "speech-translate",
+        "responseMode": "responseNode",
+        "options": {
+          "binaryData": true
+        },
+        "httpMethod": "POST"
+      },
+      "id": "Webhook",
+      "name": "Webhook",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 2,
+      "position": [
+        200,
+        300
+      ]
+    },
+    {
+      "parameters": {
+        "url": "http://host.docker.internal:8001/transcribe-translate",
+        "options": {
+          "sendBinaryProperty": "audio",
+          "sendQuery": false,
+          "responseFormat": "json",
+          "allowUnauthorizedCerts": true,
+          "headers": {}
+        },
+        "sendBinaryData": true,
+        "queryParametersUi": {
+          "parameter": []
+        },
+        "sendBody": true,
+        "bodyParametersUi": {
+          "parameter": [
+            {
+              "name": "target",
+              "value": "={{$json.body?.targetLang || $json.query?.targetLang || 'en'}}"
+            }
+          ]
+        },
+        "method": "POST"
+      },
+      "id": "HTTP Request",
+      "name": "Call Local Whisper Service",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4,
+      "position": [
+        520,
+        300
+      ]
+    },
+    {
+      "parameters": {
+        "responseBody": "={{$json}}",
+        "responseCode": 200,
+        "options": {
+          "responseHeaders": {
+            "entries": [
+              {
+                "name": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "name": "Access-Control-Allow-Origin",
+                "value": "*"
+              }
+            ]
+          }
+        }
+      },
+      "id": "Respond",
+      "name": "Respond to Webhook",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1,
+      "position": [
+        840,
+        300
+      ]
+    }
+  ],
+  "connections": {
+    "Webhook": {
+      "main": [
+        [
+          {
+            "node": "Call Local Whisper Service",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Call Local Whisper Service": {
+      "main": [
+        [
+          {
+            "node": "Respond to Webhook",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "active": true,
+  "settings": {},
+  "staticData": null,
+  "pinData": {}
+}
+

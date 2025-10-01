@@ -1,0 +1,15 @@
+* { box-sizing: border-box; }
+body { font-family: system-ui, Arial, sans-serif; margin: 0; padding: 0; background: #0f172a; color: #e2e8f0; }
+.container { max-width: 900px; margin: 0 auto; padding: 24px; }
+h1 { margin: 0 0 16px; font-size: 24px; }
+.controls { background: #111827; padding: 16px; border-radius: 8px; display: grid; gap: 12px; }
+label { margin-right: 8px; }
+select, input[type="file"], button, textarea { font-size: 14px; }
+button { background: #2563eb; color: white; border: 0; border-radius: 6px; padding: 8px 12px; cursor: pointer; }
+button[disabled] { background: #475569; cursor: not-allowed; }
+.recording, .upload { display: flex; align-items: center; gap: 8px; }
+#status { color: #93c5fd; }
+.output { margin-top: 16px; background: #111827; padding: 16px; border-radius: 8px; }
+textarea { width: 100%; background: #0b1022; color: #e2e8f0; border: 1px solid #1f2937; border-radius: 6px; padding: 10px; }
+footer { margin-top: 16px; color: #94a3b8; font-size: 12px; }
+
