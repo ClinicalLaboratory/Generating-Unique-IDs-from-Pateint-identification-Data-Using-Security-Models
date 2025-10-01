@@ -211,7 +211,7 @@ async def transcribe_translate(audio: UploadFile = File(...), target: str = Form
 @app.post("/proxy/n8n")
 async def proxy_to_n8n(audio: UploadFile = File(...), targetLang: str = Form("en")):
     # streams to local n8n webhook to avoid browser CORS
-    webhook_url = os.environ.get("N8N_WEBHOOK_URL", "http://localhost:5678/webhook/speech-translate")
+    webhook_url = os.environ.get("N8N_WEBHOOK_URL", "http://localhost:5678/webhook-test/speech-translate")
     form = httpx.MultipartWriter()
     # read content
     content = await audio.read()

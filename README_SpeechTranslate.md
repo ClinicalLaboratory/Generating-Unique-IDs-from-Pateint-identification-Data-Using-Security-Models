@@ -28,7 +28,7 @@ Health check: `curl http://127.0.0.1:8001/healthz`
 ### 4) Import and activate the n8n workflow
 Import the JSON at `n8n/workflow_speech_translate.json` into n8n (top-right menu → Import from file). It is pre-configured to be active and listen at:
 ```
-POST http://localhost:5678/webhook/speech-translate
+POST http://localhost:5678/webhook-test/speech-translate
 ```
 
 If you have n8n CLI access on the host, you can also import via CLI:
