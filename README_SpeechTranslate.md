@@ -52,3 +52,7 @@ The page posts audio to the n8n webhook and shows the translated text returned f
 - The service installs Argos Translate language packages on-demand when translating new pairs (requires internet). To preinstall, run a one-time warmup by calling `POST /transcribe-translate` with small audio for the pairs you care about.
 - To change the Whisper model, set `WHISPER_MODEL` to one of: `tiny`, `base`, `small`, `medium`, `large`.
 
+### Windows
+- Use `setup_windows.ps1` to install dependencies and create the venv.
+- See `README_Windows.md` for detailed Windows-specific steps, including enabling the optional `WHISPER_BACKEND=faster` and serving the local web UI.
+

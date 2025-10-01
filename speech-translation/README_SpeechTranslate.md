@@ -28,7 +28,7 @@ Health check: `curl http://127.0.0.1:8001/healthz`
 ### 4) Import and activate the n8n workflow
 Import the JSON at `n8n/workflow_speech_translate.json` into n8n (top-right menu → Import from file). It is pre-configured to be active and listen at:
 ```
-POST http://localhost:5678/webhook/speech-translate
+POST http://localhost:5678/webhook-test/speech-translate
 ```
 
 If you have n8n CLI access on the host, you can also import via CLI:
@@ -51,4 +51,8 @@ The page posts audio to the n8n webhook and shows the translated text returned f
 ### Notes
 - The service installs Argos Translate language packages on-demand when translating new pairs (requires internet). To preinstall, run a one-time warmup by calling `POST /transcribe-translate` with small audio for the pairs you care about.
 - To change the Whisper model, set `WHISPER_MODEL` to one of: `tiny`, `base`, `small`, `medium`, `large`.
+
+### Windows
+- Use `setup_windows.ps1` to install dependencies and create the venv.
+- See `README_Windows.md` for detailed Windows-specific steps, including enabling the optional `WHISPER_BACKEND=faster` and serving the local web UI.
 
