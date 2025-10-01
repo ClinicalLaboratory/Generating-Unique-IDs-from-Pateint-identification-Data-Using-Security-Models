@@ -1,0 +1,45 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Local Real-time Speech Translator</title>
+  <link rel="stylesheet" href="./styles.css" />
+</head>
+<body>
+  <div class="container">
+    <h1>Real-time Speech Translator (Local)</h1>
+
+    <div class="controls">
+      <label for="languageSelect">Target language:</label>
+      <select id="languageSelect"></select>
+
+      <div class="recording">
+        <button id="startBtn">Start Recording</button>
+        <button id="stopBtn" disabled>Stop Recording</button>
+        <span id="status"></span>
+      </div>
+
+      <div class="upload">
+        <input type="file" id="fileInput" accept="audio/*" />
+        <button id="uploadBtn">Upload & Translate</button>
+      </div>
+    </div>
+
+    <div class="output">
+      <h2>Translated Text</h2>
+      <textarea id="translatedText" rows="10" placeholder="Translated text will appear here..."></textarea>
+      <div class="save">
+        <button id="saveBtn">Save Translated Text</button>
+      </div>
+    </div>
+
+    <footer>
+      <p>All processing runs locally using Whisper + Argos Translate via n8n.</p>
+    </footer>
+  </div>
+
+  <script src="./app.js"></script>
+</body>
+</html>
+
