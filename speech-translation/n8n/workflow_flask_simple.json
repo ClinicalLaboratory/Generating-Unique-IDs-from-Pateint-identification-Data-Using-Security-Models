@@ -1,5 +1,5 @@
 {
-  "name": "Local Speech Translate (Whisper+Argos)",
+  "name": "Simple Flask Whisper",
   "nodes": [
     {
       "parameters": {
@@ -7,54 +7,48 @@
         "responseMode": "responseNode",
         "options": {
           "binaryData": true
-        },
-        "httpMethod": "POST"
+        }
       },
-      "id": "Webhook",
+      "id": "webhook",
       "name": "Webhook",
       "type": "n8n-nodes-base.webhook",
       "typeVersion": 2,
-      "position": [
-        200,
-        300
-      ]
+      "position": [200, 300]
     },
     {
       "parameters": {
-        "url": "http://whisper-service:8001/transcribe-translate",
+        "method": "POST",
+        "url": "http://127.0.0.1:9000/transcribe",
         "sendBody": true,
         "contentType": "multipart-form-data",
         "bodyParameters": {
           "parameters": [
             {
-              "name": "target",
-              "value": "={{ $json.body?.targetLang || $json.query?.targetLang || $json.targetLang || 'en' }}"
+              "name": "language",
+              "value": "={{ $json.body?.targetLang || $json.query?.targetLang || 'en' }}"
+            },
+            {
+              "name": "task",
+              "value": "transcribe"
             }
           ]
         },
         "sendBinaryData": true,
         "binaryPropertyName": "audio",
         "options": {
-          "responseFormat": "json",
           "timeout": 300000,
-          "allowUnauthorizedCerts": true,
-          "followRedirect": true,
-          "ignoreResponseCode": false
+          "allowUnauthorizedCerts": true
         }
       },
-      "id": "HTTP Request",
-      "name": "Whisper Transcribe",
+      "id": "http",
+      "name": "Flask Whisper",
       "type": "n8n-nodes-base.httpRequest",
       "typeVersion": 4,
-      "position": [
-        520,
-        300
-      ]
+      "position": [500, 300]
     },
     {
       "parameters": {
-        "responseBody": "={{$json}}",
-        "responseCode": 200,
+        "responseBody": "={{ $json }}",
         "options": {
           "responseHeaders": {
             "entries": [
@@ -70,14 +64,11 @@
           }
         }
       },
-      "id": "Respond",
+      "id": "respond",
       "name": "Respond to Webhook",
       "type": "n8n-nodes-base.respondToWebhook",
       "typeVersion": 1,
-      "position": [
-        840,
-        300
-      ]
+      "position": [800, 300]
     }
   ],
   "connections": {
@@ -85,14 +76,14 @@
       "main": [
         [
           {
-            "node": "Whisper Transcribe",
+            "node": "Flask Whisper",
             "type": "main",
             "index": 0
           }
         ]
       ]
     },
-    "Whisper Transcribe": {
+    "Flask Whisper": {
       "main": [
         [
           {
@@ -105,8 +96,7 @@
     }
   },
   "active": true,
-  "settings": {},
-  "staticData": null,
-  "pinData": {}
+  "settings": {
+    "executionOrder": "v1"
+  }
 }
-

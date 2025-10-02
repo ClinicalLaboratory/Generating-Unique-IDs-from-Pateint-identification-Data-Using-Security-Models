@@ -1,15 +1,175 @@
-* { box-sizing: border-box; }
-body { font-family: system-ui, Arial, sans-serif; margin: 0; padding: 0; background: #0f172a; color: #e2e8f0; }
-.container { max-width: 900px; margin: 0 auto; padding: 24px; }
-h1 { margin: 0 0 16px; font-size: 24px; }
-.controls { background: #111827; padding: 16px; border-radius: 8px; display: grid; gap: 12px; }
-label { margin-right: 8px; }
-select, input[type="file"], button, textarea { font-size: 14px; }
-button { background: #2563eb; color: white; border: 0; border-radius: 6px; padding: 8px 12px; cursor: pointer; }
-button[disabled] { background: #475569; cursor: not-allowed; }
-.recording, .upload { display: flex; align-items: center; gap: 8px; }
-#status { color: #93c5fd; }
-.output { margin-top: 16px; background: #111827; padding: 16px; border-radius: 8px; }
-textarea { width: 100%; background: #0b1022; color: #e2e8f0; border: 1px solid #1f2937; border-radius: 6px; padding: 10px; }
-footer { margin-top: 16px; color: #94a3b8; font-size: 12px; }
+* { 
+  box-sizing: border-box; 
+  -webkit-tap-highlight-color: transparent; /* Remove tap highlight on touch devices */
+}
+
+body { 
+  font-family: system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Arial, sans-serif; 
+  margin: 0; 
+  padding: 0; 
+  background: #0f172a; 
+  color: #e2e8f0; 
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+.container { 
+  max-width: 900px; 
+  margin: 0 auto; 
+  padding: 24px; 
+}
+
+h1 { 
+  margin: 0 0 16px; 
+  font-size: clamp(20px, 4vw, 28px); 
+  text-align: center;
+}
+
+.controls { 
+  background: #111827; 
+  padding: 20px; 
+  border-radius: 12px; 
+  display: grid; 
+  gap: 16px; 
+  box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1);
+}
+
+label { 
+  margin-right: 8px; 
+  font-weight: 500;
+}
+
+select, input[type="file"], button, textarea { 
+  font-size: 16px; /* Prevent zoom on iOS */
+  font-family: inherit;
+}
+
+select {
+  background: #1f2937;
+  color: #e2e8f0;
+  border: 1px solid #374151;
+  border-radius: 8px;
+  padding: 12px;
+  width: 100%;
+  max-width: 300px;
+}
+
+input[type="file"] {
+  background: #1f2937;
+  color: #e2e8f0;
+  border: 1px solid #374151;
+  border-radius: 8px;
+  padding: 12px;
+  width: 100%;
+}
+
+button { 
+  background: #2563eb; 
+  color: white; 
+  border: 0; 
+  border-radius: 8px; 
+  padding: 12px 20px; 
+  cursor: pointer; 
+  font-weight: 500;
+  min-height: 44px; /* Touch-friendly minimum size */
+  transition: all 0.2s ease;
+  touch-action: manipulation; /* Optimize for touch */
+}
+
+button:hover:not(:disabled) {
+  background: #1d4ed8;
+  transform: translateY(-1px);
+}
+
+button:active {
+  transform: translateY(0);
+}
+
+button[disabled] { 
+  background: #475569; 
+  cursor: not-allowed; 
+  transform: none;
+}
+
+.recording, .upload { 
+  display: flex; 
+  align-items: center; 
+  gap: 12px; 
+  flex-wrap: wrap;
+}
+
+#status { 
+  color: #93c5fd; 
+  font-weight: 500;
+  min-height: 20px;
+}
+
+.output { 
+  margin-top: 20px; 
+  background: #111827; 
+  padding: 20px; 
+  border-radius: 12px; 
+  box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1);
+}
+
+textarea { 
+  width: 100%; 
+  background: #0b1022; 
+  color: #e2e8f0; 
+  border: 1px solid #1f2937; 
+  border-radius: 8px; 
+  padding: 16px; 
+  min-height: 120px;
+  resize: vertical;
+  font-family: inherit;
+  line-height: 1.5;
+}
+
+textarea:focus, select:focus, input:focus {
+  outline: none;
+  border-color: #2563eb;
+  box-shadow: 0 0 0 3px rgba(37, 99, 235, 0.1);
+}
+
+.save {
+  margin-top: 12px;
+}
+
+footer { 
+  margin-top: 20px; 
+  color: #94a3b8; 
+  font-size: 14px; 
+  text-align: center;
+}
+
+/* Responsive design for tablets and mobile */
+@media (max-width: 768px) {
+  .container {
+    padding: 16px;
+  }
+  
+  .controls, .output {
+    padding: 16px;
+  }
+  
+  .recording, .upload {
+    flex-direction: column;
+    align-items: stretch;
+  }
+  
+  button {
+    width: 100%;
+  }
+  
+  select {
+    max-width: none;
+  }
+}
+
+/* High DPI displays (Surface Pro, etc.) */
+@media (-webkit-min-device-pixel-ratio: 1.5), (min-resolution: 144dpi) {
+  body {
+    font-size: 16px;
+  }
+}
 

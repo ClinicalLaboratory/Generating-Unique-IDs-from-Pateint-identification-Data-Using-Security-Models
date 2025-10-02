@@ -176,36 +176,87 @@ def healthz():
     return {"status": "ok", "model": WHISPER_MODEL_NAME, "device": DEVICE}
 
 
+@app.post("/debug")
+async def debug_request(audio: UploadFile = File(None), target: str = Form("en")):
+    """Debug endpoint to check what data is being received"""
+    debug_info = {
+        "target_language": target,
+        "audio_info": {
+            "filename": audio.filename if audio else None,
+            "content_type": audio.content_type if audio else None,
+            "size": audio.size if audio else None
+        },
+        "headers": dict(request.headers) if 'request' in globals() else "Not available"
+    }
+    
+    if audio:
+        try:
+            content = await audio.read()
+            debug_info["audio_info"]["actual_size"] = len(content)
+            debug_info["audio_info"]["has_content"] = len(content) > 0
+        except Exception as e:
+            debug_info["audio_info"]["read_error"] = str(e)
+    
+    return debug_info
+
+
 @app.post("/transcribe-translate")
 async def transcribe_translate(audio: UploadFile = File(...), target: str = Form("en")):
-    # Persist upload to a temporary file for Whisper/ffmpeg
-    suffix = ""
-    if audio.filename and "." in audio.filename:
-        suffix = os.path.splitext(audio.filename)[1]
-    elif audio.content_type == "audio/webm":
-        suffix = ".webm"
-    elif audio.content_type == "audio/wav":
-        suffix = ".wav"
-    elif audio.content_type == "audio/mpeg":
-        suffix = ".mp3"
-    else:
-        suffix = ".bin"
-
-    with tempfile.NamedTemporaryFile(delete=False, suffix=suffix) as tmp:
-        temp_path = tmp.name
-        content = await audio.read()
-        tmp.write(content)
-
     try:
+        # Validate audio file
+        if not audio.filename:
+            raise HTTPException(status_code=400, detail="No audio file provided")
+        
+        if audio.size == 0:
+            raise HTTPException(status_code=400, detail="Audio file is empty")
+        
+        # Check file size (max 50MB)
+        if audio.size > 50 * 1024 * 1024:
+            raise HTTPException(status_code=400, detail="Audio file too large (max 50MB)")
+        
+        # Determine file extension
+        suffix = ""
+        if audio.filename and "." in audio.filename:
+            suffix = os.path.splitext(audio.filename)[1]
+        elif audio.content_type == "audio/webm":
+            suffix = ".webm"
+        elif audio.content_type == "audio/wav":
+            suffix = ".wav"
+        elif audio.content_type == "audio/mpeg" or audio.content_type == "audio/mp3":
+            suffix = ".mp3"
+        elif audio.content_type == "audio/ogg":
+            suffix = ".ogg"
+        elif audio.content_type == "audio/m4a":
+            suffix = ".m4a"
+        else:
+            suffix = ".bin"
+
+        # Create temporary file
+        with tempfile.NamedTemporaryFile(delete=False, suffix=suffix) as tmp:
+            temp_path = tmp.name
+            content = await audio.read()
+            
+            if len(content) == 0:
+                raise HTTPException(status_code=400, detail="Audio file content is empty")
+            
+            tmp.write(content)
+
+        # Process the audio
         result = transcribe_and_translate(temp_path, target)
         return JSONResponse(result)
+        
+    except HTTPException:
+        raise
     except Exception as e:
-        raise HTTPException(status_code=500, detail=str(e))
+        print(f"Error processing audio: {str(e)}")
+        raise HTTPException(status_code=500, detail=f"Processing error: {str(e)}")
     finally:
+        # Clean up temporary file
         try:
-            os.remove(temp_path)
-        except Exception:
-            pass
+            if 'temp_path' in locals():
+                os.remove(temp_path)
+        except Exception as cleanup_error:
+            print(f"Warning: Could not clean up temp file: {cleanup_error}")
 
 
 @app.post("/proxy/n8n")

@@ -1,4 +1,8 @@
-const N8N_WEBHOOK_URL = (window.N8N_WEBHOOK_URL || 'http://127.0.0.1:8001/proxy/n8n');
+// Detect if running in Docker or locally
+const N8N_WEBHOOK_URL = (window.N8N_WEBHOOK_URL || 
+  (window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1' 
+    ? 'http://127.0.0.1:8001/proxy/n8n' 
+    : `http://${window.location.hostname}:8001/proxy/n8n`));
 
 const languages = [
   { code: 'ar', name: 'Arabic' },
@@ -87,10 +91,35 @@ async function sendToN8N(blob, targetLang) {
 startBtn.addEventListener('click', async () => {
   translatedText.value = '';
   statusEl.textContent = 'Requesting microphone...';
+  
   try {
-    const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
-    const mime = MediaRecorder.isTypeSupported('audio/webm;codecs=opus') ? 'audio/webm;codecs=opus' : 'audio/webm';
-    mediaRecorder = new MediaRecorder(stream, { mimeType: mime });
+    // Check if mediaDevices is supported
+    if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
+      throw new Error('MediaDevices API not supported');
+    }
+    
+    const constraints = { 
+      audio: {
+        echoCancellation: true,
+        noiseSuppression: true,
+        autoGainControl: true,
+        sampleRate: 44100
+      } 
+    };
+    
+    const stream = await navigator.mediaDevices.getUserMedia(constraints);
+    
+    // Try different MIME types for better compatibility
+    let mimeType = 'audio/webm';
+    if (MediaRecorder.isTypeSupported('audio/webm;codecs=opus')) {
+      mimeType = 'audio/webm;codecs=opus';
+    } else if (MediaRecorder.isTypeSupported('audio/mp4')) {
+      mimeType = 'audio/mp4';
+    } else if (MediaRecorder.isTypeSupported('audio/wav')) {
+      mimeType = 'audio/wav';
+    }
+    
+    mediaRecorder = new MediaRecorder(stream, { mimeType });
     chunks = [];
 
     mediaRecorder.ondataavailable = e => {
@@ -98,27 +127,48 @@ startBtn.addEventListener('click', async () => {
     };
 
     mediaRecorder.onstop = async () => {
-      const blob = new Blob(chunks, { type: 'audio/webm' });
+      // Stop all tracks to release microphone
+      stream.getTracks().forEach(track => track.stop());
+      
+      const blob = new Blob(chunks, { type: mimeType });
       statusEl.textContent = 'Translating...';
+      
       try {
         const data = await sendToN8N(blob, languageSelect.value);
         translatedText.value = data.translatedText || '';
         statusEl.textContent = `Detected: ${data.sourceLanguage} → ${data.targetLanguage}`;
       } catch (err) {
-        console.error(err);
-        statusEl.textContent = 'Error translating. See console.';
+        console.error('Translation error:', err);
+        statusEl.textContent = `Error: ${err.message || 'Translation failed'}`;
       } finally {
         resetRecorder();
       }
     };
 
-    mediaRecorder.start();
-    statusEl.textContent = 'Recording...';
+    mediaRecorder.onerror = (event) => {
+      console.error('MediaRecorder error:', event.error);
+      statusEl.textContent = `Recording error: ${event.error.name}`;
+      resetRecorder();
+    };
+
+    mediaRecorder.start(1000); // Collect data every second
+    statusEl.textContent = 'Recording... (click Stop when finished)';
     startBtn.disabled = true;
     stopBtn.disabled = false;
+    
   } catch (err) {
-    console.error(err);
-    statusEl.textContent = 'Microphone access denied or unavailable.';
+    console.error('Microphone error:', err);
+    let errorMsg = 'Microphone access denied or unavailable.';
+    
+    if (err.name === 'NotAllowedError') {
+      errorMsg = 'Microphone access denied. Please allow microphone access and try again.';
+    } else if (err.name === 'NotFoundError') {
+      errorMsg = 'No microphone found. Please connect a microphone and try again.';
+    } else if (err.name === 'NotSupportedError') {
+      errorMsg = 'Audio recording not supported in this browser.';
+    }
+    
+    statusEl.textContent = errorMsg;
   }
 });
 
@@ -136,15 +186,33 @@ uploadBtn.addEventListener('click', async () => {
     alert('Please choose an audio file first.');
     return;
   }
+  
+  // Validate file type
+  const validTypes = ['audio/wav', 'audio/mp3', 'audio/mpeg', 'audio/webm', 'audio/ogg', 'audio/m4a', 'audio/aac'];
+  if (!validTypes.includes(file.type) && !file.name.match(/\.(wav|mp3|webm|ogg|m4a|aac)$/i)) {
+    alert('Please select a valid audio file (WAV, MP3, WebM, OGG, M4A, AAC).');
+    return;
+  }
+  
+  // Check file size (limit to 50MB)
+  if (file.size > 50 * 1024 * 1024) {
+    alert('File size too large. Please select a file smaller than 50MB.');
+    return;
+  }
+  
   translatedText.value = '';
   statusEl.textContent = 'Uploading & translating...';
+  uploadBtn.disabled = true;
+  
   try {
     const data = await sendToN8N(file, languageSelect.value);
     translatedText.value = data.translatedText || '';
     statusEl.textContent = `Detected: ${data.sourceLanguage} → ${data.targetLanguage}`;
   } catch (err) {
-    console.error(err);
-    statusEl.textContent = 'Error translating. See console.';
+    console.error('Upload error:', err);
+    statusEl.textContent = `Error: ${err.message || 'Upload failed'}`;
+  } finally {
+    uploadBtn.disabled = false;
   }
 });
 

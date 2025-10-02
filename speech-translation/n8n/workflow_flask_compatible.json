@@ -1,0 +1,145 @@
+{
+  "name": "Speech Translation - Flask Compatible",
+  "nodes": [
+    {
+      "parameters": {
+        "path": "speech-translate",
+        "responseMode": "responseNode",
+        "options": {
+          "binaryData": true
+        }
+      },
+      "id": "webhook",
+      "name": "Webhook",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 2,
+      "position": [200, 300]
+    },
+    {
+      "parameters": {
+        "jsCode": "// Extract target language and audio data\nconst body = $input.first().json.body || {};\nconst query = $input.first().json.query || {};\nconst targetLang = body.targetLang || query.targetLang || body.target || query.target || 'en';\n\n// Get audio binary data\nconst audioBinary = $input.first().binary?.audio;\n\nif (!audioBinary) {\n  throw new Error('No audio data found in request');\n}\n\n// Log for debugging\nconsole.log('Target language:', targetLang);\nconsole.log('Audio data size:', audioBinary.data ? audioBinary.data.length : 'unknown');\n\nreturn {\n  json: { \n    targetLang: targetLang,\n    audioInfo: {\n      mimeType: audioBinary.mimeType,\n      fileExtension: audioBinary.fileExtension,\n      fileName: audioBinary.fileName || 'audio.webm'\n    }\n  },\n  binary: { audio: audioBinary }\n};"
+      },
+      "id": "code",
+      "name": "Extract Data",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [400, 300]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "http://127.0.0.1:9000/transcribe",
+        "sendBody": true,
+        "contentType": "multipart-form-data",
+        "bodyParameters": {
+          "parameters": [
+            {
+              "name": "language",
+              "value": "={{ $json.targetLang }}"
+            },
+            {
+              "name": "task",
+              "value": "translate"
+            }
+          ]
+        },
+        "sendBinaryData": true,
+        "binaryPropertyName": "audio",
+        "options": {
+          "timeout": 300000,
+          "allowUnauthorizedCerts": true,
+          "followRedirect": true
+        }
+      },
+      "id": "http",
+      "name": "Flask Whisper Service",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4,
+      "position": [600, 300]
+    },
+    {
+      "parameters": {
+        "jsCode": "// Process the response from Flask Whisper service\nconst response = $input.first().json;\n\n// Handle different response formats\nlet transcription = '';\nlet translatedText = '';\nlet sourceLanguage = 'unknown';\nlet targetLanguage = $('Extract Data').first().json.targetLang || 'en';\n\nif (response.text) {\n  // If it's just transcription, use it as both\n  transcription = response.text;\n  translatedText = response.text;\n} else if (response.transcription) {\n  transcription = response.transcription;\n  translatedText = response.translation || response.transcription;\n} else if (typeof response === 'string') {\n  transcription = response;\n  translatedText = response;\n} else {\n  // Try to extract any text from the response\n  transcription = JSON.stringify(response);\n  translatedText = transcription;\n}\n\nif (response.detected_language) {\n  sourceLanguage = response.detected_language;\n} else if (response.language) {\n  sourceLanguage = response.language;\n}\n\nreturn {\n  transcription: transcription,\n  translatedText: translatedText,\n  sourceLanguage: sourceLanguage,\n  targetLanguage: targetLanguage,\n  model: 'whisper-flask',\n  device: 'cpu',\n  originalResponse: response\n};"
+      },
+      "id": "process",
+      "name": "Process Response",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [800, 300]
+    },
+    {
+      "parameters": {
+        "responseBody": "={{ $json }}",
+        "options": {
+          "responseHeaders": {
+            "entries": [
+              {
+                "name": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "name": "Access-Control-Allow-Origin",
+                "value": "*"
+              }
+            ]
+          }
+        }
+      },
+      "id": "respond",
+      "name": "Respond to Webhook",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1,
+      "position": [1000, 300]
+    }
+  ],
+  "connections": {
+    "Webhook": {
+      "main": [
+        [
+          {
+            "node": "Extract Data",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Extract Data": {
+      "main": [
+        [
+          {
+            "node": "Flask Whisper Service",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Flask Whisper Service": {
+      "main": [
+        [
+          {
+            "node": "Process Response",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Process Response": {
+      "main": [
+        [
+          {
+            "node": "Respond to Webhook",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "active": true,
+  "settings": {
+    "executionOrder": "v1"
+  }
+}

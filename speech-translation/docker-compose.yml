@@ -1,0 +1,67 @@
+version: '3.8'
+
+services:
+  # n8n workflow engine
+  n8n:
+    image: n8nio/n8n:latest
+    container_name: speech-translation-n8n
+    ports:
+      - "5678:5678"
+    environment:
+      - N8N_BASIC_AUTH_ACTIVE=false
+      - N8N_HOST=0.0.0.0
+      - N8N_PORT=5678
+      - N8N_PROTOCOL=http
+      - WEBHOOK_URL=http://localhost:5678/
+      - GENERIC_TIMEZONE=UTC
+      - N8N_LOG_LEVEL=info
+    volumes:
+      - n8n_data:/home/node/.n8n
+      - ./n8n/workflows:/home/node/.n8n/workflows
+    restart: unless-stopped
+    networks:
+      - speech-translation-network
+
+  # Whisper + Argos Translation Service
+  whisper-service:
+    build:
+      context: .
+      dockerfile: Dockerfile.whisper
+    container_name: speech-translation-whisper
+    ports:
+      - "8001:8001"
+    environment:
+      - WHISPER_MODEL=base
+      - PORT=8001
+      - N8N_WEBHOOK_URL=http://n8n:5678/webhook/speech-translate
+    volumes:
+      - whisper_models:/app/models
+    restart: unless-stopped
+    networks:
+      - speech-translation-network
+    depends_on:
+      - n8n
+
+  # Web Interface
+  web-interface:
+    build:
+      context: .
+      dockerfile: Dockerfile.web
+    container_name: speech-translation-web
+    ports:
+      - "8002:80"
+    environment:
+      - N8N_WEBHOOK_URL=http://localhost:8001/proxy/n8n
+    restart: unless-stopped
+    networks:
+      - speech-translation-network
+    depends_on:
+      - whisper-service
+
+volumes:
+  n8n_data:
+  whisper_models:
+
+networks:
+  speech-translation-network:
+    driver: bridge

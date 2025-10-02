@@ -1,5 +1,5 @@
 {
-  "name": "Local Speech Translate (Whisper+Argos)",
+  "name": "Local Speech Translate (Whisper+Argos) - Fixed",
   "nodes": [
     {
       "parameters": {
@@ -7,10 +7,9 @@
         "responseMode": "responseNode",
         "options": {
           "binaryData": true
-        },
-        "httpMethod": "POST"
+        }
       },
-      "id": "Webhook",
+      "id": "webhook_node",
       "name": "Webhook",
       "type": "n8n-nodes-base.webhook",
       "typeVersion": 2,
@@ -21,6 +20,7 @@
     },
     {
       "parameters": {
+        "method": "POST",
         "url": "http://whisper-service:8001/transcribe-translate",
         "sendBody": true,
         "contentType": "multipart-form-data",
@@ -28,21 +28,17 @@
           "parameters": [
             {
               "name": "target",
-              "value": "={{ $json.body?.targetLang || $json.query?.targetLang || $json.targetLang || 'en' }}"
+              "value": "={{ $json.body?.targetLang || $json.query?.targetLang || 'en' }}"
             }
           ]
         },
         "sendBinaryData": true,
         "binaryPropertyName": "audio",
         "options": {
-          "responseFormat": "json",
-          "timeout": 300000,
-          "allowUnauthorizedCerts": true,
-          "followRedirect": true,
-          "ignoreResponseCode": false
+          "timeout": 300000
         }
       },
-      "id": "HTTP Request",
+      "id": "http_request_node",
       "name": "Whisper Transcribe",
       "type": "n8n-nodes-base.httpRequest",
       "typeVersion": 4,
@@ -53,8 +49,7 @@
     },
     {
       "parameters": {
-        "responseBody": "={{$json}}",
-        "responseCode": 200,
+        "responseBody": "={{ $json }}",
         "options": {
           "responseHeaders": {
             "entries": [
@@ -70,7 +65,7 @@
           }
         }
       },
-      "id": "Respond",
+      "id": "respond_node",
       "name": "Respond to Webhook",
       "type": "n8n-nodes-base.respondToWebhook",
       "typeVersion": 1,
@@ -105,8 +100,13 @@
     }
   },
   "active": true,
-  "settings": {},
+  "settings": {
+    "executionOrder": "v1"
+  },
   "staticData": null,
-  "pinData": {}
+  "meta": {
+    "templateCredsSetupCompleted": true
+  },
+  "pinData": {},
+  "versionId": "1"
 }
-
