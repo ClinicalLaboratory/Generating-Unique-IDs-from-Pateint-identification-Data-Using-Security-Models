@@ -1,0 +1,21 @@
+# Speech Translation System Requirements
+# Compatible with Microsoft Surface and Windows
+
+# Whisper and dependencies
+openai-whisper==20231117
+torch==2.1.0
+torchaudio==2.1.0
+
+# Flask for API services
+flask==3.0.0
+flask-cors==4.0.0
+
+# Translation service
+argostranslate==1.9.1
+
+# Audio processing
+ffmpeg-python==0.2.0
+
+# Utilities
+werkzeug==3.0.1
+numpy==1.26.2

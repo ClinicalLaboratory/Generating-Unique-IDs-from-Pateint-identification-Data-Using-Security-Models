@@ -1,0 +1,285 @@
+{
+  "name": "Speech Translation Workflow",
+  "nodes": [
+    {
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "speech-translate",
+        "responseMode": "responseNode",
+        "options": {
+          "allowedOrigins": "*"
+        }
+      },
+      "id": "webhook-node",
+      "name": "Webhook",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 1,
+      "position": [250, 300],
+      "webhookId": "speech-translate"
+    },
+    {
+      "parameters": {
+        "jsCode": "// Extract audio file and target language from webhook data\nconst binaryData = items[0].binary;\nconst targetLanguage = items[0].json.body?.target_language || 'en';\n\n// Check if audio file exists\nif (!binaryData || !binaryData.audio) {\n  throw new Error('No audio file received');\n}\n\n// Pass through the data\nreturn {\n  json: {\n    target_language: targetLanguage,\n    has_audio: true,\n    audio_mimetype: binaryData.audio.mimeType\n  },\n  binary: binaryData\n};"
+      },
+      "id": "extract-data-node",
+      "name": "Extract Data",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [450, 300]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "http://host.docker.internal:9000/transcribe",
+        "sendBody": true,
+        "contentType": "multipart-form-data",
+        "bodyParameters": {
+          "parameters": [
+            {
+              "name": "audio",
+              "inputDataFieldName": "=audio"
+            },
+            {
+              "name": "task",
+              "value": "=transcribe"
+            }
+          ]
+        },
+        "options": {
+          "response": {
+            "response": {
+              "responseFormat": "json"
+            }
+          }
+        }
+      },
+      "id": "whisper-transcribe-node",
+      "name": "Whisper Transcribe",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.1,
+      "position": [650, 300]
+    },
+    {
+      "parameters": {
+        "jsCode": "// Extract transcription results from Whisper\nconst whisperResponse = items[0].json;\n\nif (!whisperResponse.success) {\n  throw new Error('Whisper transcription failed: ' + (whisperResponse.error || 'Unknown error'));\n}\n\nconst detectedLanguage = whisperResponse.detected_language;\nconst transcribedText = whisperResponse.transcribed_text;\nconst targetLanguage = $node[\"Extract Data\"].json.target_language;\n\nreturn {\n  json: {\n    detected_language: detectedLanguage,\n    transcribed_text: transcribedText,\n    target_language: targetLanguage,\n    needs_translation: detectedLanguage !== targetLanguage\n  }\n};"
+      },
+      "id": "process-transcription-node",
+      "name": "Process Transcription",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [850, 300]
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "boolean": [
+            {
+              "value1": "={{ $json.needs_translation }}",
+              "value2": true
+            }
+          ]
+        }
+      },
+      "id": "check-translation-needed-node",
+      "name": "Translation Needed?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 1,
+      "position": [1050, 300]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "http://host.docker.internal:9001/translate",
+        "sendBody": true,
+        "contentType": "json",
+        "body": "={{ JSON.stringify({\n  text: $json.transcribed_text,\n  source_language: $json.detected_language,\n  target_language: $json.target_language\n}) }}",
+        "options": {
+          "response": {
+            "response": {
+              "responseFormat": "json"
+            }
+          }
+        }
+      },
+      "id": "translate-text-node",
+      "name": "Translate Text",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.1,
+      "position": [1250, 200]
+    },
+    {
+      "parameters": {
+        "jsCode": "// Extract translated text\nconst translationResponse = items[0].json;\n\nif (!translationResponse.success) {\n  throw new Error('Translation failed: ' + (translationResponse.error || 'Unknown error'));\n}\n\nconst previousData = $node[\"Process Transcription\"].json;\n\nreturn {\n  json: {\n    success: true,\n    detected_language: previousData.detected_language,\n    transcribed_text: previousData.transcribed_text,\n    target_language: previousData.target_language,\n    translated_text: translationResponse.translated_text\n  }\n};"
+      },
+      "id": "format-translation-node",
+      "name": "Format Translation",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [1450, 200]
+    },
+    {
+      "parameters": {
+        "jsCode": "// No translation needed - transcribed text is already in target language\nconst data = items[0].json;\n\nreturn {\n  json: {\n    success: true,\n    detected_language: data.detected_language,\n    transcribed_text: data.transcribed_text,\n    target_language: data.target_language,\n    translated_text: data.transcribed_text\n  }\n};"
+      },
+      "id": "no-translation-node",
+      "name": "No Translation Needed",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [1250, 400]
+    },
+    {
+      "parameters": {
+        "mode": "combine",
+        "combinationMode": "multiplex",
+        "options": {}
+      },
+      "id": "merge-results-node",
+      "name": "Merge Results",
+      "type": "n8n-nodes-base.merge",
+      "typeVersion": 2.1,
+      "position": [1650, 300]
+    },
+    {
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "={{ JSON.stringify($json) }}",
+        "options": {
+          "responseHeaders": {
+            "entries": [
+              {
+                "name": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "name": "Access-Control-Allow-Origin",
+                "value": "*"
+              }
+            ]
+          }
+        }
+      },
+      "id": "respond-webhook-node",
+      "name": "Respond to Webhook",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1,
+      "position": [1850, 300]
+    }
+  ],
+  "connections": {
+    "Webhook": {
+      "main": [
+        [
+          {
+            "node": "Extract Data",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Extract Data": {
+      "main": [
+        [
+          {
+            "node": "Whisper Transcribe",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Whisper Transcribe": {
+      "main": [
+        [
+          {
+            "node": "Process Transcription",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Process Transcription": {
+      "main": [
+        [
+          {
+            "node": "Translation Needed?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Translation Needed?": {
+      "main": [
+        [
+          {
+            "node": "Translate Text",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "No Translation Needed",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Translate Text": {
+      "main": [
+        [
+          {
+            "node": "Format Translation",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Format Translation": {
+      "main": [
+        [
+          {
+            "node": "Merge Results",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "No Translation Needed": {
+      "main": [
+        [
+          {
+            "node": "Merge Results",
+            "type": "main",
+            "index": 1
+          }
+        ]
+      ]
+    },
+    "Merge Results": {
+      "main": [
+        [
+          {
+            "node": "Respond to Webhook",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "pinData": {},
+  "settings": {
+    "executionOrder": "v1"
+  },
+  "staticData": null,
+  "tags": [],
+  "triggerCount": 1,
+  "updatedAt": "2025-10-02T00:00:00.000Z",
+  "versionId": "1"
+}
