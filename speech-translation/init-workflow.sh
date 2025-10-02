@@ -25,43 +25,73 @@ echo "📥 Importing workflow..."
 
 WORKFLOW_FILE="/workspace/speech-translation/n8n/workflow_speech_translate.json"
 
+# Use the fixed workflow if the original fails
+WORKFLOW_FILE_FIXED="/workspace/speech-translation/n8n/workflow_speech_translate_fixed.json"
+WORKFLOW_FILE_SIMPLE="/workspace/speech-translation/n8n/workflow_simple.json"
+
 if [ ! -f "$WORKFLOW_FILE" ]; then
     echo "❌ Workflow file not found: $WORKFLOW_FILE"
     exit 1
 fi
 
-# Import the workflow
-response=$(curl -s -X POST \
-    -H "Content-Type: application/json" \
-    -d @"$WORKFLOW_FILE" \
-    http://localhost:5678/rest/workflows/import)
-
-if echo "$response" | grep -q '"id"'; then
-    workflow_id=$(echo "$response" | grep -o '"id":"[^"]*"' | cut -d'"' -f4)
-    echo "✅ Workflow imported successfully! ID: $workflow_id"
+import_workflow() {
+    local workflow_file="$1"
+    local workflow_name="$2"
     
-    # Activate the workflow
-    echo "🔄 Activating workflow..."
-    activate_response=$(curl -s -X POST \
+    echo "📥 Trying to import $workflow_name..."
+    
+    response=$(curl -s -X POST \
         -H "Content-Type: application/json" \
-        -d '{"active": true}' \
-        "http://localhost:5678/rest/workflows/$workflow_id/activate")
-    
-    if echo "$activate_response" | grep -q '"active":true'; then
-        echo "✅ Workflow activated successfully!"
-        echo ""
-        echo "🎉 Setup complete!"
-        echo "📱 Open http://localhost:8002 to use the speech translator"
-        echo "⚙️  n8n interface: http://localhost:5678"
+        -d @"$workflow_file" \
+        http://localhost:5678/rest/workflows/import)
+
+    if echo "$response" | grep -q '"id"'; then
+        workflow_id=$(echo "$response" | grep -o '"id":"[^"]*"' | cut -d'"' -f4)
+        echo "✅ $workflow_name imported successfully! ID: $workflow_id"
+        
+        # Activate the workflow
+        echo "🔄 Activating workflow..."
+        activate_response=$(curl -s -X POST \
+            -H "Content-Type: application/json" \
+            -d '{"active": true}' \
+            "http://localhost:5678/rest/workflows/$workflow_id/activate")
+        
+        if echo "$activate_response" | grep -q '"active":true'; then
+            echo "✅ Workflow activated successfully!"
+            echo ""
+            echo "🎉 Setup complete!"
+            echo "📱 Open http://localhost:8002 to use the speech translator"
+            echo "⚙️  n8n interface: http://localhost:5678"
+            return 0
+        else
+            echo "⚠️  Workflow imported but activation failed."
+            return 1
+        fi
     else
-        echo "⚠️  Workflow imported but activation failed. Please activate manually in n8n."
+        echo "❌ Failed to import $workflow_name. Response: $response"
+        return 1
     fi
+}
+
+# Try to import workflows in order of preference
+if import_workflow "$WORKFLOW_FILE" "main workflow"; then
+    exit 0
+elif import_workflow "$WORKFLOW_FILE_FIXED" "fixed workflow"; then
+    echo "✅ Used fixed workflow version"
+    exit 0
+elif import_workflow "$WORKFLOW_FILE_SIMPLE" "simple workflow"; then
+    echo "✅ Used simple workflow version"
+    exit 0
 else
-    echo "❌ Failed to import workflow. Response: $response"
     echo ""
-    echo "📋 Manual import instructions:"
+    echo "❌ All automatic imports failed. Manual setup required:"
     echo "1. Open http://localhost:5678"
     echo "2. Click menu (≡) → Import from file"
-    echo "3. Select: n8n/workflow_speech_translate.json"
-    echo "4. Click Import and Activate"
+    echo "3. Try importing in this order:"
+    echo "   - n8n/workflow_speech_translate_fixed.json (recommended)"
+    echo "   - n8n/workflow_simple.json (most compatible)"
+    echo "   - n8n/workflow_speech_translate.json (original)"
+    echo "4. Activate the imported workflow"
+    echo "5. Then open http://localhost:8002"
+    exit 1
 fi

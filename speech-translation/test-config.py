@@ -66,7 +66,7 @@ def test_n8n_workflow():
         
         # Check nodes
         nodes = workflow.get('nodes', [])
-        required_nodes = ['Webhook', 'Call Local Whisper Service', 'Respond to Webhook']
+        required_nodes = ['Webhook', 'Whisper Transcribe', 'Respond to Webhook']
         
         node_names = [node.get('name', '') for node in nodes]
         for required_node in required_nodes:

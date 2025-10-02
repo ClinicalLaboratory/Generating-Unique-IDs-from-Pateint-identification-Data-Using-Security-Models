@@ -1,5 +1,5 @@
 {
-  "name": "Local Speech Translate (Whisper+Argos)",
+  "name": "Simple Speech Translation",
   "nodes": [
     {
       "parameters": {
@@ -7,20 +7,27 @@
         "responseMode": "responseNode",
         "options": {
           "binaryData": true
-        },
-        "httpMethod": "POST"
+        }
       },
-      "id": "Webhook",
+      "id": "webhook",
       "name": "Webhook",
       "type": "n8n-nodes-base.webhook",
       "typeVersion": 2,
-      "position": [
-        200,
-        300
-      ]
+      "position": [200, 300]
     },
     {
       "parameters": {
+        "jsCode": "// Extract target language from request\nconst targetLang = $input.first().json.body?.targetLang || \n                  $input.first().json.query?.targetLang || \n                  $input.first().json.targetLang || 'en';\n\n// Get the audio binary data\nconst audioBinary = $input.first().binary?.audio;\n\nif (!audioBinary) {\n  throw new Error('No audio data found in request');\n}\n\n// Return the data for the next node\nreturn {\n  json: { targetLang },\n  binary: { audio: audioBinary }\n};"
+      },
+      "id": "code",
+      "name": "Extract Data",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [400, 300]
+    },
+    {
+      "parameters": {
+        "method": "POST",
         "url": "http://whisper-service:8001/transcribe-translate",
         "sendBody": true,
         "contentType": "multipart-form-data",
@@ -28,33 +35,26 @@
           "parameters": [
             {
               "name": "target",
-              "value": "={{ $json.body?.targetLang || $json.query?.targetLang || $json.targetLang || 'en' }}"
+              "value": "={{ $json.targetLang }}"
             }
           ]
         },
         "sendBinaryData": true,
         "binaryPropertyName": "audio",
         "options": {
-          "responseFormat": "json",
           "timeout": 300000,
-          "allowUnauthorizedCerts": true,
-          "followRedirect": true,
-          "ignoreResponseCode": false
+          "allowUnauthorizedCerts": true
         }
       },
-      "id": "HTTP Request",
+      "id": "http",
       "name": "Whisper Transcribe",
       "type": "n8n-nodes-base.httpRequest",
       "typeVersion": 4,
-      "position": [
-        520,
-        300
-      ]
+      "position": [600, 300]
     },
     {
       "parameters": {
-        "responseBody": "={{$json}}",
-        "responseCode": 200,
+        "responseBody": "={{ $json }}",
         "options": {
           "responseHeaders": {
             "entries": [
@@ -70,18 +70,26 @@
           }
         }
       },
-      "id": "Respond",
+      "id": "respond",
       "name": "Respond to Webhook",
       "type": "n8n-nodes-base.respondToWebhook",
       "typeVersion": 1,
-      "position": [
-        840,
-        300
-      ]
+      "position": [800, 300]
     }
   ],
   "connections": {
     "Webhook": {
+      "main": [
+        [
+          {
+            "node": "Extract Data",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Extract Data": {
       "main": [
         [
           {
@@ -105,8 +113,7 @@
     }
   },
   "active": true,
-  "settings": {},
-  "staticData": null,
-  "pinData": {}
+  "settings": {
+    "executionOrder": "v1"
+  }
 }
-
