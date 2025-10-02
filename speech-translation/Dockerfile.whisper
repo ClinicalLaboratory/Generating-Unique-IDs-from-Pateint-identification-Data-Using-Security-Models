@@ -1,0 +1,40 @@
+# Use Python 3.11 slim image for better compatibility with Microsoft Surface
+FROM python:3.11-slim
+
+# Set working directory
+WORKDIR /app
+
+# Install system dependencies including ffmpeg
+RUN apt-get update && apt-get install -y \
+    ffmpeg \
+    git \
+    build-essential \
+    && rm -rf /var/lib/apt/lists/*
+
+# Copy requirements and install Python dependencies
+COPY requirements.txt .
+RUN pip install --no-cache-dir --upgrade pip setuptools wheel
+
+# Install PyTorch CPU version for better compatibility
+RUN pip install --no-cache-dir --index-url https://download.pytorch.org/whl/cpu torch torchvision torchaudio
+
+# Install other requirements
+RUN pip install --no-cache-dir -r requirements.txt
+
+# Copy the application code
+COPY scripts/ ./scripts/
+COPY . .
+
+# Create models directory for Whisper model caching
+RUN mkdir -p /app/models
+ENV WHISPER_CACHE_DIR=/app/models
+
+# Expose port
+EXPOSE 8001
+
+# Health check
+HEALTHCHECK --interval=30s --timeout=10s --start-period=60s --retries=3 \
+    CMD curl -f http://localhost:8001/healthz || exit 1
+
+# Run the application
+CMD ["python", "-m", "uvicorn", "scripts.transcribe_translate_service:app", "--host", "0.0.0.0", "--port", "8001"]
